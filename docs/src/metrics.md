@@ -10,7 +10,8 @@ This page provides detailed explanations of all metrics implemented in Repertoir
 | Is the repertoire clonally expanded? | `Clonality`, `Gini`, `D50` | Directly measure dominance |
 | How diverse overall? | `Shannon Diversity`, `Inverse Simpson` | Effective number of clones |
 | How dominant is the top clone? | `Berger-Parker`, `D50` | Simple, interpretable |
-| Comparing samples of different sizes? | `Simpson`, `Berger-Parker`, or use `rarefaction` | Less sample-size sensitive |
+| Comparing samples of different sizes? | `Simpson`, `Berger-Parker`, `Gini` | Frequency-based, depth-robust |
+| Need richness comparison across depths? | `rarefaction` + `Richness` | Rarefaction equalizes depth |
 | Full diversity profile? | `Hill numbers` with varying q | Unified theoretical framework |
 
 ### Common Pitfalls
@@ -352,12 +353,79 @@ Key relationships:
 
 ### Recommendations
 
-1. **For comparing samples of different sizes:** Use rarefaction first, or use metrics less sensitive to sample size (Simpson, Berger-Parker). See the [Rarefaction section](quickstart.md#Rarefaction-for-Comparing-Uneven-Samples) in the Quick Start guide.
+1. **For detecting clonal expansion:** Use Clonality, Gini, D50, or Berger-Parker.
 
-2. **For detecting clonal expansion:** Use Clonality, Gini, D50, or Berger-Parker.
+2. **For a complete picture:** Compute multiple metrics or use the Hill number profile across different orders.
 
-3. **For a complete picture:** Compute multiple metrics or use the Hill number profile across different orders.
+3. **For estimating true diversity:** Use Chao1, especially when many singletons are present.
 
-4. **For estimating true diversity:** Use Chao1, especially when many singletons are present.
+---
 
-5. **For robust comparisons without rarefaction:** Prefer Simpson diversity or Inverse Simpson, which are naturally dominated by abundant lineages and less affected by sampling depth.
+## Handling Different Sequencing Depths
+
+When comparing repertoires with different total counts, you have several strategies:
+
+### Strategy 1: Use Depth-Robust Metrics (Recommended)
+
+Many metrics are computed from **frequencies** (proportions), not raw counts. Mathematically, these metrics depend only on the shape of the distribution, not the total N:
+
+| Metric | Depth Sensitivity | Why |
+|--------|-------------------|-----|
+| Simpson Index | **Low** | Dominated by abundant clones |
+| Inverse Simpson | **Low** | Same as Simpson |
+| Berger-Parker | **Very Low** | Only looks at top clone |
+| Gini Coefficient | **Low** | Measures inequality of frequencies |
+| Shannon Entropy | **Moderate** | More sensitive to rare clones |
+| Richness | **Very High** | More sequences = more rare clones observed |
+| Chao1 | **High** | Based on singletons/doubletons |
+
+**When to use:** When you have accurate count data and want to avoid information loss.
+
+```julia
+# These are naturally comparable across different depths
+metrics = compute_metrics(rep, SimpsonDiversity() + InverseSimpson() + BergerParker() + Gini())
+```
+
+### Strategy 2: Rarefaction (Conservative)
+
+Randomly subsample all repertoires to the same depth. See [Rarefaction](quickstart.md#Rarefaction-for-Comparing-Uneven-Samples).
+
+**Pros:** Makes richness comparable; theoretically rigorous  
+**Cons:** Discards information from deeper samples; introduces stochasticity
+
+**When to use:** When comparing richness specifically, or when you want the most conservative comparison.
+
+### Strategy 3: Normalize to Total Count
+
+If you have the `count` column, the total count reflects the original sequencing depth:
+
+```julia
+rep = read_repertoire("data.tsv", VJCdr3Definition())
+println("Total sequences: ", total_count(rep))  # Original depth preserved
+println("Unique lineages: ", richness(rep))     # Observed clones
+
+# Frequencies are already normalized
+freqs = frequencies(rep)  # Sum to 1.0
+```
+
+The frequency-based metrics already use this normalization internally.
+
+### Strategy 4: Report Depth Alongside Metrics
+
+Always report sequencing depth so readers can assess comparability:
+
+```julia
+metrics = compute_metrics(rep)
+df = metrics_to_dataframe(rep, metrics)
+# DataFrame includes total_count for context
+```
+
+### The Sampling Reality
+
+Even with "depth-robust" metrics, there's a subtlety: **observed frequencies are estimates of true population frequencies**. With shallow sequencing:
+- Rare clones may not be observed at all
+- Observed frequencies of rare clones have higher variance
+
+This means Simpson/Shannon computed from shallow data may still differ from deep data, not because the metric is biased, but because the *input frequencies* are different estimates of the same underlying distribution.
+
+**Bottom line:** For robust comparisons, prefer Simpson-family metrics and report total counts. Use rarefaction when richness comparison is essential.

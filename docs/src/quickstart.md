@@ -188,23 +188,47 @@ h2 = hill_number(rep, 2)
 h_half = hill_number(rep, 0.5)
 ```
 
-## Rarefaction for Comparing Uneven Samples
+## Comparing Samples of Different Depths
 
 ### The Problem with Uneven Sample Sizes
 
-Many diversity metrics are sensitive to sample size (sequencing depth). A repertoire with 100,000 sequences will almost always appear more diverse than one with 10,000 sequences, even if the underlying distributions are identical. This is because deeper sequencing captures more rare lineages.
+A repertoire with 100,000 sequences will almost always show more unique lineages than one with 10,000 sequences, even if the underlying distributions are identical. This is because deeper sequencing captures more rare clones.
 
-Metrics most affected by sample size:
+### Solution 1: Use Depth-Robust Metrics (Simplest)
+
+Many metrics work on **frequencies** (proportions) rather than counts. Since frequencies sum to 1.0 regardless of total count, these metrics are mathematically less sensitive to depth:
+
+```julia
+# These metrics are naturally robust to depth differences
+robust = SimpsonDiversity() + InverseSimpson() + BergerParker() + GiniCoefficient()
+metrics = compute_metrics(rep, robust)
+```
+
+| Metric | Depth Sensitivity |
+|--------|-------------------|
+| Simpson Index/Diversity | **Low** |
+| Inverse Simpson | **Low** |
+| Berger-Parker | **Very Low** |
+| Gini Coefficient | **Low** |
+| Shannon Entropy | Moderate |
+| Richness | **Very High** |
+
+**Key insight:** If you have accurate count data (e.g., from UMI deduplication), the frequencies computed from your counts already reflect the true clonal distribution. Simpson-family metrics on these frequencies are directly comparable across samples.
+
+### Solution 2: Rarefaction (For Richness Comparisons)
+
+When you specifically need to compare **richness** (number of unique clones), rarefaction is the standard approach. It randomly subsamples all repertoires to the same depth.
+
+Metrics most affected by sample size (where rarefaction helps):
 - **Richness** - heavily affected (more sampling = more lineages detected)
 - **Chao1** - heavily affected (relies on singletons/doubletons)
 - **Shannon entropy** - moderately affected
-- **Simpson index** - less affected (dominated by abundant lineages)
 
-### What is Rarefaction?
+#### What is Rarefaction?
 
-Rarefaction is the process of randomly subsampling a repertoire to a fixed depth (total count). By subsampling all repertoires to the same depth, you can make fair comparisons.
+Rarefaction randomly subsamples a repertoire to a fixed depth (total count). By subsampling all repertoires to the same depth, you can fairly compare richness.
 
-### Basic Usage
+#### Basic Usage
 
 ```julia
 # Check sample sizes
@@ -221,7 +245,7 @@ metrics1 = compute_metrics(rep1_rarefied)
 metrics2 = compute_metrics(rep2_rarefied)
 ```
 
-### Reproducibility with Random Seed
+#### Reproducibility with Random Seed
 
 Rarefaction involves random sampling. For reproducible results, provide a random number generator:
 
@@ -232,7 +256,7 @@ rng = MersenneTwister(42)  # Fixed seed
 rarefied = rarefaction(rep, 10000; rng=rng)
 ```
 
-### Rarefaction Curves
+#### Rarefaction Curves
 
 To understand how metrics change with sequencing depth, compute metrics at multiple depths:
 
@@ -249,7 +273,7 @@ for d in depths
 end
 ```
 
-### Best Practices
+#### Best Practices for Rarefaction
 
 1. **Choose a common depth** - Use the minimum depth across all samples you want to compare
 2. **Don't rarefy too aggressively** - Very low depths lose too much information
@@ -257,11 +281,21 @@ end
 4. **Report the depth used** - Always document the rarefaction depth in your analysis
 5. **Alternative: use robust metrics** - Simpson index and Berger-Parker are naturally less sensitive to sample size
 
-### When NOT to Use Rarefaction
+#### When NOT to Use Rarefaction
 
 - When comparing samples of similar depth (within ~2-fold)
-- When using metrics insensitive to depth (Simpson, Berger-Parker)
+- When using depth-robust metrics (Simpson, Berger-Parker, Gini)
 - When absolute richness (not relative comparison) is the goal
+- When you want to preserve information from deeply sequenced samples
+
+### Summary: Depth Strategy Decision Tree
+
+```
+Do you need to compare RICHNESS specifically?
+├── YES → Use rarefaction, then compare richness
+└── NO → Use depth-robust metrics (Simpson, Berger-Parker, Gini)
+         These work directly on frequencies and don't need rarefaction
+```
 
 ## Length Metrics (CDR3 and more)
 
