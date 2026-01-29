@@ -114,12 +114,32 @@ metrics_to_dataframe
 write_metrics
 ```
 
-## CDR3 Statistics
+## Length Statistics
+
+### Types and Functions
 
 ```@docs
-CDR3Stats
-cdr3_stats
-cdr3_length_distribution
+LengthStats
+compute_length_stats
+length_distribution
+has_length_stats
+length_stats
+```
+
+### Composable Length Metrics
+
+```@docs
+MeanLength
+MedianLength
+StdLength
+MinLength
+MaxLength
+mean_length
+median_length
+std_length
+min_length
+max_length
+LENGTH_METRICS
 ```
 
 ## Index

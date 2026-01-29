@@ -47,8 +47,8 @@ include("types.jl")
 include("repertoire.jl")
 include("metrics.jl")
 include("metric_sets.jl")
+include("length_stats.jl")
 include("io.jl")
-include("cdr3_stats.jl")
 
 # ============================================================================
 # Exports
@@ -131,9 +131,22 @@ export read_repertoire,
 # Utilities
 export first_allele
 
-# CDR3 statistics
-export CDR3Stats,
-       cdr3_stats,
-       cdr3_length_distribution
+# Length statistics (composable)
+export LengthStats,
+       compute_length_stats,
+       length_distribution,
+       MeanLength,
+       MedianLength,
+       StdLength,
+       MinLength,
+       MaxLength,
+       mean_length,
+       median_length,
+       std_length,
+       min_length,
+       max_length,
+       has_length_stats,
+       length_stats,
+       LENGTH_METRICS
 
 end # module RepertoireMetrics

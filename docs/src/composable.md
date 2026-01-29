@@ -57,6 +57,13 @@ Each metric has a corresponding type:
 | `GiniCoefficient()` | Gini index |
 | `D50()` | D50 |
 | `Chao1()` | Chao1 estimator |
+| `MeanLength()` | Mean sequence length* |
+| `MedianLength()` | Median sequence length* |
+| `StdLength()` | Std dev of sequence length* |
+| `MinLength()` | Minimum sequence length* |
+| `MaxLength()` | Maximum sequence length* |
+
+\* Length metrics require `length_column` to be specified when creating the repertoire.
 
 ### Accessing Results
 
@@ -112,6 +119,16 @@ Richness and its estimator:
 ```julia
 result = compute_metrics(rep, RICHNESS_METRICS)
 # Includes: richness, total_count, chao1
+```
+
+### `LENGTH_METRICS`
+
+All sequence length statistics (requires `length_column` during repertoire creation):
+
+```julia
+rep = read_repertoire("data.tsv", VJCdr3Definition(); length_column=:cdr3)
+result = compute_metrics(rep, LENGTH_METRICS)
+# Includes: mean_length, median_length, std_length, min_length, max_length
 ```
 
 ## Combining Sets and Metrics

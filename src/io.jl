@@ -13,7 +13,9 @@ using DataFrames
         strategy::AbstractLineageDefinition;
         count_column::Union{Symbol,Nothing} = :count,
         donor_id::String = "",
-        donor_column::Union{Symbol,Nothing} = nothing
+        donor_column::Union{Symbol,Nothing} = nothing,
+        length_column::Union{Symbol,Nothing} = nothing,
+        length_aa::Bool = false
     ) -> Repertoire{Int}
 
 Convert a DataFrame to a Repertoire using the specified lineage definition strategy.
@@ -26,15 +28,31 @@ Convert a DataFrame to a Repertoire using the specified lineage definition strat
 - `donor_id`: Donor/sample identifier. If empty and `donor_column` is specified, 
   extracts from first row.
 - `donor_column`: Column containing donor IDs (e.g., `:library_id`)
+- `length_column`: Column to compute length statistics from (e.g., `:cdr3`, `:junction`).
+  If `nothing` (default), no length statistics are computed.
+- `length_aa`: If `true`, `length_column` contains amino acid sequences. If `false` (default),
+  assumes nucleotide sequences and converts to amino acid length (÷3).
 
 # Returns
-A `Repertoire{Int}` with aggregated lineage counts.
+A `Repertoire{Int}` with aggregated lineage counts. If `length_column` is specified,
+length statistics are stored in metadata and accessible via composable metrics like
+`MeanLength()`, `MedianLength()`, etc.
 
 # Example
 ```julia
 df = CSV.read("sequences.tsv", DataFrame)
+
+# Basic repertoire
 rep = repertoire_from_dataframe(df, VJCdr3Definition())
-rep = repertoire_from_dataframe(df, LineageIDDefinition(:lineage_id))
+
+# With CDR3 length statistics
+rep = repertoire_from_dataframe(df, VJCdr3Definition(); length_column=:cdr3)
+println(mean_length(rep))  # Access via function
+metrics = compute_metrics(rep, MeanLength() + MedianLength())  # Or compose
+
+# Using amino acid column directly
+rep = repertoire_from_dataframe(df, VJCdr3Definition(); 
+    length_column=:cdr3_aa, length_aa=true)
 ```
 """
 function repertoire_from_dataframe(
@@ -42,7 +60,9 @@ function repertoire_from_dataframe(
     strategy::AbstractLineageDefinition;
     count_column::Union{Symbol,Nothing} = :count,
     donor_id::String = "",
-    donor_column::Union{Symbol,Nothing} = nothing
+    donor_column::Union{Symbol,Nothing} = nothing,
+    length_column::Union{Symbol,Nothing} = nothing,
+    length_aa::Bool = false
 )
     isempty(df) && return Repertoire(Int[], String[]; donor_id=donor_id)
     
@@ -85,6 +105,17 @@ function repertoire_from_dataframe(
         "original_rows" => nrow(df)
     )
     
+    # Compute length statistics if requested
+    if length_column !== nothing && hasproperty(df, length_column)
+        length_stats = compute_length_stats(
+            df;
+            length_column=length_column,
+            count_column=has_count ? count_column : nothing,
+            use_aa=length_aa
+        )
+        metadata["length_stats"] = length_stats
+    end
+    
     return Repertoire(counts_vec, ids_vec; donor_id=donor_id, metadata=metadata)
 end
 
@@ -123,6 +154,8 @@ _key_to_string(key) = string(key)
         count_column::Union{Symbol,Nothing} = :count,
         donor_id::String = "",
         donor_column::Union{Symbol,Nothing} = nothing,
+        length_column::Union{Symbol,Nothing} = nothing,
+        length_aa::Bool = false,
         kwargs...
     ) -> Repertoire{Int}
 
@@ -134,6 +167,8 @@ Read a MIAIRR TSV file and convert to a Repertoire.
 - `count_column`: Column containing sequence counts (default `:count`)
 - `donor_id`: Donor/sample identifier
 - `donor_column`: Column to extract donor ID from (e.g., `:library_id`)
+- `length_column`: Column to compute length statistics from (e.g., `:cdr3`)
+- `length_aa`: If `true`, `length_column` contains amino acid sequences
 - `kwargs...`: Additional arguments passed to `CSV.read`
 
 # Example
@@ -141,11 +176,15 @@ Read a MIAIRR TSV file and convert to a Repertoire.
 # Using lineage_id column
 rep = read_repertoire("collapsed_data.tsv", LineageIDDefinition())
 
-# Using V-J-CDR3 definition
-rep = read_repertoire("sequences.tsv", VJCdr3Definition())
+# Using V-J-CDR3 definition with CDR3 length stats
+rep = read_repertoire("sequences.tsv", VJCdr3Definition(); length_column=:cdr3)
 
 # With donor ID from file
 rep = read_repertoire("data.tsv", VJCdr3Definition(); donor_column=:library_id)
+
+# Compute length from amino acid column
+rep = read_repertoire("data.tsv", VJCdr3Definition(); 
+    length_column=:cdr3_aa, length_aa=true)
 ```
 """
 function read_repertoire(
@@ -154,6 +193,8 @@ function read_repertoire(
     count_column::Union{Symbol,Nothing} = :count,
     donor_id::String = "",
     donor_column::Union{Symbol,Nothing} = nothing,
+    length_column::Union{Symbol,Nothing} = nothing,
+    length_aa::Bool = false,
     kwargs...
 )
     # Determine file type and set appropriate CSV options
@@ -179,7 +220,9 @@ function read_repertoire(
         df, strategy;
         count_column=count_column,
         donor_id=donor_id,
-        donor_column=donor_column
+        donor_column=donor_column,
+        length_column=length_column,
+        length_aa=length_aa
     )
     
     # Add filepath to metadata

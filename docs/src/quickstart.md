@@ -263,54 +263,101 @@ end
 - When using metrics insensitive to depth (Simpson, Berger-Parker)
 - When absolute richness (not relative comparison) is the goal
 
-## CDR3 Length Statistics
+## Length Metrics (CDR3 and more)
 
-In addition to diversity metrics, CDR3 length is an important repertoire characteristic. Longer CDR3s are associated with higher specificity and are often enriched in certain immune responses.
+Sequence length is an important repertoire characteristic. CDR3 length in particular is associated with binding specificity. RepertoireMetrics provides **composable length metrics** that integrate seamlessly with diversity metrics.
 
-### Basic CDR3 Statistics
+### Enabling Length Statistics
+
+Specify a `length_column` when creating your repertoire:
 
 ```julia
-using RepertoireMetrics, CSV, DataFrames
+using RepertoireMetrics
 
+# Read repertoire with CDR3 length statistics
+rep = read_repertoire("sequences.tsv", VJCdr3Definition(); 
+    length_column=:cdr3)  # Default: nucleotide → amino acid conversion
+
+# Or from DataFrame
 df = CSV.read("sequences.tsv", DataFrame)
+rep = repertoire_from_dataframe(df, VJCdr3Definition();
+    count_column=:count,
+    length_column=:cdr3)
+```
 
-# Compute CDR3 length statistics (nucleotide sequences converted to AA length)
-stats = cdr3_stats(df; cdr3_column=:cdr3)
+### Accessing Length Statistics
+
+```julia
+# Direct accessors
+println("Mean CDR3 length: ", mean_length(rep))
+println("Median: ", median_length(rep))
+println("Std: ", std_length(rep))
+println("Range: ", min_length(rep), " - ", max_length(rep))
+
+# Get full stats object
+stats = length_stats(rep)
 println(stats)
-# Output:
-# CDR3Stats:
-#   Mean length:   14.5
-#   Median length: 14.0
-#   Std length:    3.2
-#   Range:         8 - 24
-#   N sequences:   50000
 ```
 
-### Weighted by Count
+### Composable Length Metrics
 
-If your data has a count column (e.g., from UMI deduplication), weight the statistics:
+Length metrics work with the same `+` operator as diversity metrics:
 
 ```julia
-stats = cdr3_stats(df; cdr3_column=:cdr3, count_column=:count)
+# Just length metrics
+metrics = compute_metrics(rep, MeanLength() + MedianLength())
+
+# Mix with diversity metrics
+metrics = compute_metrics(rep, 
+    Richness() + ShannonEntropy() + MeanLength() + StdLength())
+
+# All length metrics at once
+metrics = compute_metrics(rep, LENGTH_METRICS)
 ```
 
-### Using Amino Acid Sequences
+### Flexible Column Selection
 
-If your CDR3 column contains amino acid sequences:
+The `length_column` parameter accepts any column name, making it useful for:
+- CDR3 nucleotide (`:cdr3`) - converted to AA length
+- CDR3 amino acid (`:cdr3_aa`) - use with `length_aa=true`
+- Junction (`:junction`)
+- Any other sequence column
 
 ```julia
-stats = cdr3_stats(df; cdr3_column=:cdr3_aa, use_aa=true)
+# Using amino acid column directly
+rep = read_repertoire("data.tsv", VJCdr3Definition();
+    length_column=:cdr3_aa,
+    length_aa=true)
+
+# Using junction length
+rep = read_repertoire("data.tsv", VJCdr3Definition();
+    length_column=:junction)
 ```
 
-### CDR3 Length Distribution
+### Length Distribution
 
-Get the full distribution of CDR3 lengths:
+For detailed analysis, get the full distribution:
 
 ```julia
-dist = cdr3_length_distribution(df; cdr3_column=:cdr3, count_column=:count)
+dist = length_distribution(df; length_column=:cdr3, count_column=:count)
 
-# Print distribution
-for (len, count) in sort(collect(dist))
-    println("Length $len: $count sequences")
+for (len, cnt) in sort(collect(dist))
+    println("Length $len: $cnt sequences")
 end
+```
+
+### Multi-Donor Analysis with Length
+
+```julia
+# Read collection with length stats
+files = ["donor1.tsv", "donor2.tsv"]
+collection = read_repertoires(files, VJCdr3Definition();
+    length_column=:cdr3)
+
+# Compute diversity + length metrics for all donors
+results = compute_metrics(collection, 
+    Richness() + ShannonEntropy() + MeanLength())
+
+# Convert to DataFrame for analysis
+df = metrics_to_dataframe(collection, results)
 ```

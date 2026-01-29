@@ -398,30 +398,31 @@ using DataFrames
         @test :clonality in propertynames(df)
     end
     
-    @testset "CDR3 Statistics" begin
-        # Create test DataFrame with CDR3 sequences (nucleotide, length divisible by 3)
+    @testset "Length Statistics (Composable)" begin
+        # Create test DataFrame with sequences (nucleotide, length divisible by 3)
         df = DataFrame(
+            v_call = ["IGHV1-1*01", "IGHV1-2*01", "IGHV1-3*01", "IGHV1-4*01"],
+            j_call = ["IGHJ1*01", "IGHJ1*01", "IGHJ2*01", "IGHJ2*01"],
             cdr3 = ["TGTGCCAGG", "TGTGCCAGGAAA", "TGTGCC", "TGTGCCAGGAAATTT"],  # lengths 9,12,6,15 nt -> 3,4,2,5 aa
             count = [10, 5, 3, 2]
         )
         
-        # Unweighted statistics
-        stats = cdr3_stats(df; cdr3_column=:cdr3)
+        # Test compute_length_stats directly (unweighted)
+        stats = compute_length_stats(df; length_column=:cdr3)
         @test stats.n_sequences == 4
         @test stats.min_length == 2
         @test stats.max_length == 5
         @test stats.mean_length ≈ (3 + 4 + 2 + 5) / 4 atol=1e-10
-        @test stats.weighted == false
+        @test stats.column == :cdr3
         
         # Weighted statistics
-        stats_w = cdr3_stats(df; cdr3_column=:cdr3, count_column=:count)
-        @test stats_w.weighted == true
+        stats_w = compute_length_stats(df; length_column=:cdr3, count_column=:count)
         @test stats_w.n_sequences == 20  # 10+5+3+2
         # Weighted mean: (3*10 + 4*5 + 2*3 + 5*2) / 20 = (30+20+6+10)/20 = 66/20 = 3.3
         @test stats_w.mean_length ≈ 3.3 atol=1e-10
         
-        # CDR3 length distribution
-        dist = cdr3_length_distribution(df; cdr3_column=:cdr3, count_column=:count)
+        # Length distribution
+        dist = length_distribution(df; length_column=:cdr3, count_column=:count)
         @test dist[3] == 10  # length 3 has count 10
         @test dist[4] == 5   # length 4 has count 5
         @test dist[2] == 3   # length 2 has count 3
@@ -429,17 +430,52 @@ using DataFrames
         
         # Test with amino acid sequences
         df_aa = DataFrame(
-            cdr3_aa = ["CAR", "CARD", "CA", "CARDY"],
+            v_call = ["IGHV1-1*01", "IGHV1-2*01", "IGHV1-3*01", "IGHV1-4*01"],
+            j_call = ["IGHJ1*01", "IGHJ1*01", "IGHJ2*01", "IGHJ2*01"],
+            cdr3 = ["AAA", "AAAAAA", "AAAAAAAAA", "AAAAAAAAAAAA"],  # just for lineage
+            cdr3_aa = ["CAR", "CARD", "CA", "CARDY"],  # 3, 4, 2, 5
             count = [10, 5, 3, 2]
         )
-        stats_aa = cdr3_stats(df_aa; cdr3_column=:cdr3_aa, use_aa=true)
+        stats_aa = compute_length_stats(df_aa; length_column=:cdr3_aa, use_aa=true)
         @test stats_aa.min_length == 2
         @test stats_aa.max_length == 5
         
+        # Test composable integration - create repertoire with length stats
+        rep = repertoire_from_dataframe(df, VJCdr3Definition(); 
+            count_column=:count, length_column=:cdr3)
+        
+        @test has_length_stats(rep)
+        @test mean_length(rep) ≈ 3.3 atol=1e-10
+        @test min_length(rep) == 2
+        @test max_length(rep) == 5
+        
+        # Composable metrics
+        metrics = compute_metrics(rep, MeanLength() + MedianLength())
+        @test metrics.mean_length ≈ 3.3 atol=1e-10
+        @test haskey(metrics.values, :median_length)
+        
+        # All length metrics at once
+        metrics_all = compute_metrics(rep, LENGTH_METRICS)
+        @test haskey(metrics_all.values, :mean_length)
+        @test haskey(metrics_all.values, :std_length)
+        @test haskey(metrics_all.values, :min_length)
+        @test haskey(metrics_all.values, :max_length)
+        
+        # Mix with other metrics
+        mixed = compute_metrics(rep, Richness() + MeanLength() + ShannonEntropy())
+        @test haskey(mixed.values, :richness)
+        @test haskey(mixed.values, :mean_length)
+        @test haskey(mixed.values, :shannon_entropy)
+        
         # Empty DataFrame
-        empty_df = DataFrame(cdr3 = String[])
-        empty_stats = cdr3_stats(empty_df)
+        empty_df = DataFrame(cdr3 = String[], v_call = String[], j_call = String[])
+        empty_stats = compute_length_stats(empty_df; length_column=:cdr3)
         @test empty_stats.n_sequences == 0
+        
+        # Repertoire without length stats should error on access
+        rep_no_length = Repertoire([100, 50, 25])
+        @test !has_length_stats(rep_no_length)
+        @test_throws ErrorException mean_length(rep_no_length)
     end
     
 end
