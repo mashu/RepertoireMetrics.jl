@@ -14,7 +14,8 @@ Stores lineage counts in a type-stable manner for efficient metric computation.
 - `lineage_ids::Vector{String}`: Lineage identifiers corresponding to counts
 - `donor_id::String`: Identifier for the donor/sample
 - `total_count::T`: Total count (cached for efficiency)
-- `metadata::Dict{String,Any}`: Optional metadata
+- `metadata::Dict{String,Any}`: Optional metadata (flexible storage for extensibility; 
+  known keys like `"length_stats"` contain typed values)
 
 # Construction
 Use the constructors or `read_repertoire` for type-safe creation.

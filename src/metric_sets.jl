@@ -179,6 +179,7 @@ const RICHNESS_METRICS = MetricSet((
     Metrics <: AbstractMetricResult
 
 Result container for computed metrics. Access values by property name.
+All values are stored as `Float64` for type stability.
 
 # Example
 ```julia
@@ -189,15 +190,17 @@ println(result.d50)
 ```
 """
 struct Metrics <: AbstractMetricResult
-    values::Dict{Symbol, Any}
+    values::Dict{Symbol, Float64}
     metric_names::Vector{Symbol}
 end
 
-function Base.getproperty(m::Metrics, name::Symbol)
-    if name in (:values, :metric_names)
-        return getfield(m, name)
+function Base.getproperty(m::Metrics, name::Symbol)::Union{Dict{Symbol,Float64}, Vector{Symbol}, Float64, Missing}
+    if name === :values
+        return getfield(m, :values)
+    elseif name === :metric_names
+        return getfield(m, :metric_names)
     end
-    return get(m.values, name, missing)
+    return get(getfield(m, :values), name, missing)
 end
 
 Base.propertynames(m::Metrics) = getfield(m, :metric_names)
@@ -285,12 +288,12 @@ result = compute_metrics(rep, DIVERSITY_METRICS)
 ```
 """
 function compute_metrics(rep::Repertoire, ms::MetricSet)
-    values = Dict{Symbol, Any}()
+    values = Dict{Symbol, Float64}()
     names = Symbol[]
     
     for m in ms.metrics
         name = metric_symbol(m)
-        values[name] = compute_metric(rep, m)
+        values[name] = Float64(compute_metric(rep, m))
         push!(names, name)
     end
     

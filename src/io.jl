@@ -75,6 +75,9 @@ function repertoire_from_dataframe(
     end
     
     # Aggregate counts by lineage
+    # Note: Dict{Any,Int} is used here because lineage keys can be different types
+    # depending on the strategy (String, Tuple, custom). This is only used during
+    # construction, not in hot computation paths. Keys are converted to String for storage.
     lineage_counts = Dict{Any,Int}()
     
     for row in eachrow(df)

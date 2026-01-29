@@ -1,6 +1,36 @@
 # Diversity and Clonality Metrics
 
-This page provides detailed explanations of all metrics implemented in Clonality.jl, including mathematical formulas, interpretation, and usage guidelines.
+This page provides detailed explanations of all metrics implemented in RepertoireMetrics.jl, including mathematical formulas, interpretation, and usage guidelines.
+
+## Quick Reference: Which Metric Should I Use?
+
+| Your Question | Recommended Metrics | Why |
+|--------------|---------------------|-----|
+| How many unique clones? | `Richness`, `Chao1` | Chao1 estimates unseen clones |
+| Is the repertoire clonally expanded? | `Clonality`, `Gini`, `D50` | Directly measure dominance |
+| How diverse overall? | `Shannon Diversity`, `Inverse Simpson` | Effective number of clones |
+| How dominant is the top clone? | `Berger-Parker`, `D50` | Simple, interpretable |
+| Comparing samples of different sizes? | `Simpson`, `Berger-Parker`, or use `rarefaction` | Less sample-size sensitive |
+| Full diversity profile? | `Hill numbers` with varying q | Unified theoretical framework |
+
+### Common Pitfalls
+
+| Pitfall | Problem | Solution |
+|---------|---------|----------|
+| Comparing richness across sample sizes | Larger samples always show more clones | Use rarefaction or Chao1 |
+| Ignoring rare clones | Simpson/Berger-Parker may miss important rare populations | Also compute Shannon or richness |
+| Over-interpreting small differences | Sampling noise can be substantial | Use confidence intervals or bootstrapping |
+| Assuming one metric tells the whole story | Different metrics capture different aspects | Report multiple complementary metrics |
+
+### Metric Relationships
+
+```
+Clonality = 1 - Evenness = 1 - (Shannon Entropy / log(Richness))
+Shannon Diversity = exp(Shannon Entropy) = Hill number q=1
+Inverse Simpson = 1 / Simpson Index = Hill number q=2
+```
+
+---
 
 ## Notation
 
