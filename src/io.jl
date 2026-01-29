@@ -162,10 +162,11 @@ _key_to_string(key) = string(key)
         kwargs...
     ) -> Repertoire{Int}
 
-Read a MIAIRR TSV file and convert to a Repertoire.
+Read a MIAIRR file (TSV, CSV, or gzipped) and convert to a Repertoire.
+The delimiter is auto-detected by CSV.jl.
 
 # Arguments
-- `filepath`: Path to TSV file
+- `filepath`: Path to file (supports .tsv, .csv, .tsv.gz, .csv.gz)
 - `strategy`: Lineage definition strategy
 - `count_column`: Column containing sequence counts (default `:count`)
 - `donor_id`: Donor/sample identifier
@@ -200,17 +201,11 @@ function read_repertoire(
     length_aa::Bool = false,
     kwargs...
 )
-    # Determine file type and set appropriate CSV options
+    # Set CSV options - let CSV.jl auto-detect delimiter
     csv_kwargs = Dict{Symbol,Any}(
         :missingstring => ["", "NA", "na", "N/A", "n/a"],
-        :delim => '\t',
     )
     merge!(csv_kwargs, Dict(kwargs))
-    
-    # Handle gzipped files
-    if endswith(lowercase(filepath), ".gz")
-        error("Gzipped files require CodecZlib.jl. Please decompress first or add CodecZlib.jl support.")
-    end
     
     df = CSV.read(filepath, DataFrame; csv_kwargs...)
     
