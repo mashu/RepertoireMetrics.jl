@@ -1,0 +1,128 @@
+# API Reference
+
+## Lineage Definition Strategies
+
+```@docs
+AbstractLineageDefinition
+LineageIDDefinition
+VJCdr3Definition
+CustomDefinition
+lineage_key
+first_allele
+```
+
+## Data Structures
+
+```@docs
+Repertoire
+RepertoireCollection
+richness
+total_count
+frequencies
+counts
+lineage_ids
+donor_id
+```
+
+## Reading Data
+
+```@docs
+read_repertoire
+read_repertoires
+read_repertoires_from_directory
+repertoire_from_dataframe
+split_by_donor
+```
+
+## Computing Metrics
+
+### Main Functions
+
+```@docs
+compute_metrics
+Metrics
+compute_metric
+```
+
+### Individual Metric Functions
+
+```@docs
+shannon_entropy
+simpson_index
+simpson_diversity
+inverse_simpson
+berger_parker_index
+gini_coefficient
+clonality
+evenness
+d50
+chao1
+hill_number
+```
+
+### Hill Numbers
+
+```@docs
+HillNumber
+```
+
+### Composable Metric Selection
+
+```@docs
+AbstractMetric
+MetricSet
+```
+
+### Predefined Metric Sets
+
+```@docs
+ALL_METRICS
+DIVERSITY_METRICS
+CLONALITY_METRICS
+RICHNESS_METRICS
+```
+
+### Metric Types
+
+```@docs
+Richness
+TotalCount
+ShannonEntropy
+ShannonDiversity
+NormalizedShannon
+SimpsonIndex
+SimpsonDiversity
+InverseSimpson
+BergerParker
+Evenness
+Clonality
+GiniCoefficient
+D50
+Chao1
+```
+
+## Sampling
+
+```@docs
+rarefaction
+```
+
+## Exporting Results
+
+```@docs
+metrics_to_dataframe
+write_metrics
+```
+
+## CDR3 Statistics
+
+```@docs
+CDR3Stats
+cdr3_stats
+cdr3_length_distribution
+```
+
+## Index
+
+```@index
+```

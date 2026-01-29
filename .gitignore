@@ -1,0 +1,16 @@
+# Julia generated files
+*.jl.cov
+*.jl.*.cov
+*.jl.mem
+Manifest.toml
+
+# Documentation build
+docs/build/
+
+# IDE
+.vscode/
+*.swp
+*~
+
+# OS
+.DS_Store
