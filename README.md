@@ -1,3 +1,5 @@
+![RepertoireMetrics_logo](https://github.com/user-attachments/assets/b9234102-f8c4-49a0-89b0-688b18bf383f)
+
 # RepertoireMetrics.jl
 
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://mashu.github.io/RepertoireMetrics.jl/stable/)
