@@ -495,6 +495,18 @@ using DataFrames
         rep_no_length = Repertoire([100, 50, 25])
         @test !has_length_stats(rep_no_length)
         @test_throws ErrorException mean_length(rep_no_length)
+        
+        # Test extract_lengths and multiple dispatch
+        sl = extract_lengths(df; length_column=:cdr3, count_column=:count)
+        @test sl isa SequenceLengths
+        @test length(sl) == 4
+        @test !isempty(sl)
+        
+        # Both stats and distribution work from same extracted data
+        stats_from_sl = compute_length_stats(sl)
+        dist_from_sl = length_distribution(sl)
+        @test stats_from_sl.mean_length ≈ 3.3 atol=1e-10
+        @test dist_from_sl[3] == 10
     end
     
 end

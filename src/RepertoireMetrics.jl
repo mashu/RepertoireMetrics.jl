@@ -134,7 +134,9 @@ export read_repertoire,
 export first_allele
 
 # Length statistics (composable)
-export LengthStats,
+export SequenceLengths,
+       extract_lengths,
+       LengthStats,
        compute_length_stats,
        length_distribution,
        MeanLength,

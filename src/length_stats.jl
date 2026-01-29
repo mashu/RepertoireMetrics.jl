@@ -3,6 +3,102 @@
 
 using Statistics: mean, std, median
 
+# ============================================================================
+# SequenceLengths - extracted lengths with weights (shared data structure)
+# ============================================================================
+
+"""
+    SequenceLengths
+
+Extracted sequence lengths and their weights from a DataFrame.
+Used as intermediate representation for computing various length statistics.
+
+# Fields
+- `lengths::Vector{Int}`: Extracted lengths
+- `weights::Vector{Int}`: Corresponding weights (from count column or 1s)
+- `column::Symbol`: Source column name
+- `use_aa::Bool`: Whether lengths are amino acid lengths
+"""
+struct SequenceLengths
+    lengths::Vector{Int}
+    weights::Vector{Int}
+    column::Symbol
+    use_aa::Bool
+end
+
+Base.isempty(sl::SequenceLengths) = isempty(sl.lengths)
+Base.length(sl::SequenceLengths) = length(sl.lengths)
+
+"""
+    extract_lengths(df::DataFrame; length_column=:cdr3, count_column=nothing, use_aa=false) -> SequenceLengths
+
+Extract sequence lengths and weights from a DataFrame column.
+
+# Arguments
+- `df`: DataFrame containing sequences
+- `length_column`: Column to measure length from (default `:cdr3`)
+- `count_column`: If provided, use as weights. If `nothing`, each row weighs 1.
+- `use_aa`: If `true`, column contains amino acid sequences. If `false` (default),
+  assumes nucleotide sequences and divides length by 3.
+
+# Returns
+A `SequenceLengths` object containing lengths and weights.
+
+# Example
+```julia
+sl = extract_lengths(df; length_column=:cdr3, count_column=:count)
+stats = compute_length_stats(sl)
+dist = length_distribution(sl)
+```
+"""
+function extract_lengths(
+    df::DataFrame;
+    length_column::Symbol = :cdr3,
+    count_column::Union{Symbol,Nothing} = nothing,
+    use_aa::Bool = false
+)
+    lengths = Int[]
+    weights = Int[]
+    
+    hasproperty(df, length_column) || return SequenceLengths(lengths, weights, length_column, use_aa)
+    
+    has_count = count_column !== nothing && hasproperty(df, count_column)
+    
+    for row in eachrow(df)
+        val = row[length_column]
+        
+        # Skip missing/empty
+        if val === missing || val === nothing
+            continue
+        end
+        
+        s = string(val)
+        if isempty(s)
+            continue
+        end
+        
+        len = length(s)
+        if !use_aa
+            len = len ÷ 3  # Convert nucleotide to amino acid length
+        end
+        
+        push!(lengths, len)
+        
+        if has_count
+            c = row[count_column]
+            push!(weights, (c === missing || c === nothing) ? 1 : round(Int, c))
+        else
+            push!(weights, 1)
+        end
+    end
+    
+    return SequenceLengths(lengths, weights, length_column, use_aa)
+end
+
+# ============================================================================
+# LengthStats - computed statistics
+# ============================================================================
+
 """
     LengthStats
 
@@ -41,6 +137,58 @@ function Base.show(io::IO, s::LengthStats)
     print(io, "  N:      ", s.n_sequences)
 end
 
+# ============================================================================
+# Multiple dispatch: compute_length_stats on SequenceLengths
+# ============================================================================
+
+"""
+    compute_length_stats(sl::SequenceLengths) -> LengthStats
+
+Compute length statistics from extracted sequence lengths.
+"""
+function compute_length_stats(sl::SequenceLengths)
+    isempty(sl) && return LengthStats(0.0, 0.0, 0.0, 0, 0, 0, sl.column, sl.use_aa)
+    
+    lengths, weights = sl.lengths, sl.weights
+    total_weight = sum(weights)
+    
+    # Check if we have non-uniform weights
+    has_weights = any(w != 1 for w in weights)
+    
+    if has_weights && total_weight > 0
+        # Weighted statistics
+        weighted_mean = sum(lengths .* weights) / total_weight
+        weighted_var = sum(weights .* (lengths .- weighted_mean).^2) / total_weight
+        weighted_std = sqrt(weighted_var)
+        
+        # Weighted median
+        expanded = reduce(vcat, [fill(l, w) for (l, w) in zip(lengths, weights)])
+        weighted_median = Float64(median(expanded))
+        
+        return LengthStats(
+            weighted_mean,
+            weighted_median,
+            weighted_std,
+            minimum(lengths),
+            maximum(lengths),
+            total_weight,
+            sl.column,
+            sl.use_aa
+        )
+    else
+        return LengthStats(
+            mean(lengths),
+            Float64(median(lengths)),
+            length(lengths) > 1 ? std(lengths) : 0.0,
+            minimum(lengths),
+            maximum(lengths),
+            length(lengths),
+            sl.column,
+            sl.use_aa
+        )
+    end
+end
+
 """
     compute_length_stats(df::DataFrame; length_column=:cdr3, count_column=nothing, use_aa=false) -> LengthStats
 
@@ -62,78 +210,27 @@ function compute_length_stats(
     count_column::Union{Symbol,Nothing} = nothing,
     use_aa::Bool = false
 )
-    hasproperty(df, length_column) || 
-        return LengthStats(0.0, 0.0, 0.0, 0, 0, 0, length_column, use_aa)
+    sl = extract_lengths(df; length_column, count_column, use_aa)
+    return compute_length_stats(sl)
+end
+
+# ============================================================================
+# Multiple dispatch: length_distribution on SequenceLengths
+# ============================================================================
+
+"""
+    length_distribution(sl::SequenceLengths) -> Dict{Int,Int}
+
+Compute length distribution from extracted sequence lengths.
+"""
+function length_distribution(sl::SequenceLengths)
+    distribution = Dict{Int,Int}()
     
-    lengths = Int[]
-    weights = Int[]
-    
-    has_count = count_column !== nothing && hasproperty(df, count_column)
-    
-    for row in eachrow(df)
-        val = row[length_column]
-        
-        # Skip missing/empty
-        if val === missing || val === nothing
-            continue
-        end
-        
-        s = string(val)
-        if isempty(s)
-            continue
-        end
-        
-        len = length(s)
-        if !use_aa
-            len = len ÷ 3  # Convert nucleotide to amino acid length
-        end
-        
-        push!(lengths, len)
-        
-        if has_count
-            c = row[count_column]
-            push!(weights, (c === missing || c === nothing) ? 1 : round(Int, c))
-        else
-            push!(weights, 1)
-        end
+    for (len, weight) in zip(sl.lengths, sl.weights)
+        distribution[len] = get(distribution, len, 0) + weight
     end
     
-    isempty(lengths) && return LengthStats(0.0, 0.0, 0.0, 0, 0, 0, length_column, use_aa)
-    
-    total_weight = sum(weights)
-    
-    if has_count && total_weight > 0
-        # Weighted statistics
-        weighted_mean = sum(lengths .* weights) / total_weight
-        weighted_var = sum(weights .* (lengths .- weighted_mean).^2) / total_weight
-        weighted_std = sqrt(weighted_var)
-        
-        # Weighted median
-        expanded = reduce(vcat, [fill(l, w) for (l, w) in zip(lengths, weights)])
-        weighted_median = Float64(median(expanded))
-        
-        return LengthStats(
-            weighted_mean,
-            weighted_median,
-            weighted_std,
-            minimum(lengths),
-            maximum(lengths),
-            total_weight,
-            length_column,
-            use_aa
-        )
-    else
-        return LengthStats(
-            mean(lengths),
-            Float64(median(lengths)),
-            length(lengths) > 1 ? std(lengths) : 0.0,
-            minimum(lengths),
-            maximum(lengths),
-            length(lengths),
-            length_column,
-            use_aa
-        )
-    end
+    return distribution
 end
 
 """
@@ -164,39 +261,9 @@ function length_distribution(
     count_column::Union{Symbol,Nothing} = nothing,
     use_aa::Bool = false
 )
-    hasproperty(df, length_column) || 
-        throw(ArgumentError("Column $length_column not found in DataFrame"))
-    
-    distribution = Dict{Int,Int}()
-    has_count = count_column !== nothing && hasproperty(df, count_column)
-    
-    for row in eachrow(df)
-        val = row[length_column]
-        
-        if val === missing || val === nothing
-            continue
-        end
-        
-        s = string(val)
-        if isempty(s)
-            continue
-        end
-        
-        len = length(s)
-        if !use_aa
-            len = len ÷ 3
-        end
-        
-        weight = 1
-        if has_count
-            c = row[count_column]
-            weight = (c === missing || c === nothing) ? 1 : round(Int, c)
-        end
-        
-        distribution[len] = get(distribution, len, 0) + weight
-    end
-    
-    return distribution
+    sl = extract_lengths(df; length_column, count_column, use_aa)
+    isempty(sl) && throw(ArgumentError("Column $length_column not found or empty in DataFrame"))
+    return length_distribution(sl)
 end
 
 # ============================================================================
