@@ -194,14 +194,23 @@ h_half = hill_number(rep, 0.5)
 
 A repertoire with 100,000 sequences will almost always show more unique lineages than one with 10,000 sequences, even if the underlying distributions are identical. This is because deeper sequencing captures more rare clones.
 
-### Solution 1: Use Depth-Robust Metrics (Simplest)
+### Solution 1: Use Depth-Robust Metrics (Recommended Default)
 
 Many metrics work on **frequencies** (proportions) rather than counts. Since frequencies sum to 1.0 regardless of total count, these metrics are mathematically less sensitive to depth:
 
 ```julia
-# These metrics are naturally robust to depth differences
-robust = SimpsonDiversity() + InverseSimpson() + BergerParker() + GiniCoefficient()
-metrics = compute_metrics(rep, robust)
+# Recommended: use the predefined ROBUST_METRICS set
+metrics = compute_metrics(rep, ROBUST_METRICS)
+
+println("Depth: ", metrics.depth)  # Always report sequencing depth!
+println("Simpson: ", metrics.simpson_diversity)
+println("Clonality: ", metrics.clonality)
+```
+
+Or select specific robust metrics:
+
+```julia
+metrics = compute_metrics(rep, Depth() + SimpsonDiversity() + Clonality() + GiniCoefficient())
 ```
 
 | Metric | Depth Sensitivity |

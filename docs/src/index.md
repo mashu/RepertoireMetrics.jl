@@ -54,13 +54,14 @@ using RepertoireMetrics
 rep = read_repertoire("sequences.tsv", VJCdr3Definition(); 
     length_column=:cdr3)
 
-# Compute all metrics
-metrics = compute_metrics(rep)
-println("Shannon diversity: ", metrics.shannon_diversity)
+# Compute depth-robust metrics (recommended for comparisons)
+metrics = compute_metrics(rep, Depth() + SimpsonDiversity() + Clonality() + GiniCoefficient())
+println("Depth: ", metrics.depth)        # Always report depth
+println("Simpson diversity: ", metrics.simpson_diversity)
 println("Clonality: ", metrics.clonality)
 
-# Or select specific metrics
-metrics = compute_metrics(rep, ShannonEntropy() + Clonality() + MeanLength())
+# Or compute all metrics
+metrics = compute_metrics(rep)
 ```
 
 ## Installation
@@ -74,11 +75,13 @@ Pkg.add("RepertoireMetrics")
 
 Before diving in, keep these key points in mind:
 
-1. **Sample size matters**: Richness and Shannon entropy are sensitive to sequencing depth. Use [rarefaction](quickstart.md#Rarefaction-for-Comparing-Uneven-Samples) or sample-size-robust metrics (Simpson, Berger-Parker) when comparing samples of different sizes.
+1. **Frequency-based metrics are preferred**: Most metrics (Simpson, Gini, Clonality) work on frequencies and are naturally comparable across different sequencing depths. Always report `Depth` alongside metrics for context.
 
-2. **No single metric tells the whole story**: Different metrics capture different aspects of the distribution. Report multiple complementary metrics.
+2. **Richness needs special handling**: If comparing richness across samples of different sizes, use [rarefaction](quickstart.md#Solution-2:-Rarefaction-(For-Richness-Comparisons)) or the Chao1 estimator.
 
-3. **Lineage definition affects results**: Whether you use `lineage_id`, V-J-CDR3, or a custom definition will change your results. Be consistent across analyses.
+3. **No single metric tells the whole story**: Different metrics capture different aspects of the distribution. Report multiple complementary metrics.
+
+4. **Lineage definition affects results**: Whether you use `lineage_id`, V-J-CDR3, or a custom definition will change your results. Be consistent across analyses.
 
 See the [Metrics page](metrics.md) for a quick reference table on which metric to use for which question.
 

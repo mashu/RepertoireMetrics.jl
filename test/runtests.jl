@@ -378,6 +378,25 @@ using DataFrames
         @test compute_metric(rep, Richness()) == richness(rep)
     end
     
+    @testset "Depth metric and ROBUST_METRICS" begin
+        rep = Repertoire([100, 50, 25, 10, 5])
+        
+        # Test Depth metric
+        metrics = compute_metrics(rep, Depth())
+        @test metrics.depth == 190.0  # Float64 conversion
+        
+        # Test Depth equals TotalCount
+        metrics2 = compute_metrics(rep, Depth() + TotalCount())
+        @test metrics2.depth == metrics2.total_count
+        
+        # Test ROBUST_METRICS includes depth
+        robust = compute_metrics(rep, ROBUST_METRICS)
+        @test haskey(robust.values, :depth)
+        @test haskey(robust.values, :simpson_diversity)
+        @test haskey(robust.values, :clonality)
+        @test haskey(robust.values, :gini_coefficient)
+    end
+    
     @testset "MetricSet with Collection" begin
         rep1 = Repertoire([100, 50], donor_id="D1")
         rep2 = Repertoire([80, 60, 40], donor_id="D2")

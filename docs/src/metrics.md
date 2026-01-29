@@ -382,9 +382,14 @@ Many metrics are computed from **frequencies** (proportions), not raw counts. Ma
 **When to use:** When you have accurate count data and want to avoid information loss.
 
 ```julia
-# These are naturally comparable across different depths
-metrics = compute_metrics(rep, SimpsonDiversity() + InverseSimpson() + BergerParker() + Gini())
+# Use the predefined ROBUST_METRICS set (includes Depth for reporting)
+metrics = compute_metrics(rep, ROBUST_METRICS)
+
+# Or select specific robust metrics
+metrics = compute_metrics(rep, Depth() + SimpsonDiversity() + Clonality() + GiniCoefficient())
 ```
+
+**Always report depth:** Include `Depth()` in your metrics so readers know the sequencing depth of each sample.
 
 ### Strategy 2: Rarefaction (Conservative)
 

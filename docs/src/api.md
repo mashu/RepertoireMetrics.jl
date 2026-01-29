@@ -80,6 +80,7 @@ ALL_METRICS
 DIVERSITY_METRICS
 CLONALITY_METRICS
 RICHNESS_METRICS
+ROBUST_METRICS
 ```
 
 ### Metric Types
@@ -87,6 +88,7 @@ RICHNESS_METRICS
 ```@docs
 Richness
 TotalCount
+Depth
 ShannonEntropy
 ShannonDiversity
 NormalizedShannon

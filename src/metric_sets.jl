@@ -19,6 +19,9 @@ struct Richness <: AbstractMetric end
 """TotalCount: Total sequence/cell count (N)"""
 struct TotalCount <: AbstractMetric end
 
+"""Depth: Sequencing depth (alias for total count, commonly used term)"""
+struct Depth <: AbstractMetric end
+
 """ShannonEntropy: H = -Σ(pᵢ log pᵢ)"""
 struct ShannonEntropy <: AbstractMetric end
 
@@ -171,6 +174,24 @@ const RICHNESS_METRICS = MetricSet((
     Chao1()
 ))
 
+"""
+    ROBUST_METRICS
+
+Depth-robust metrics recommended for comparing samples of different sizes.
+These metrics are computed from frequencies and are less sensitive to sequencing depth.
+Includes `Depth` so you always report sequencing depth alongside comparisons.
+"""
+const ROBUST_METRICS = MetricSet((
+    Depth(),
+    Richness(),
+    SimpsonIndex(),
+    SimpsonDiversity(),
+    InverseSimpson(),
+    BergerParker(),
+    Clonality(),
+    GiniCoefficient()
+))
+
 # ============================================================================
 # Metrics result container
 # ============================================================================
@@ -220,6 +241,7 @@ end
 # Symbol name for each metric type
 metric_symbol(::Richness) = :richness
 metric_symbol(::TotalCount) = :total_count
+metric_symbol(::Depth) = :depth
 metric_symbol(::ShannonEntropy) = :shannon_entropy
 metric_symbol(::ShannonDiversity) = :shannon_diversity
 metric_symbol(::NormalizedShannon) = :normalized_shannon
@@ -246,6 +268,7 @@ function compute_metric end
 
 compute_metric(rep::Repertoire, ::Richness) = richness(rep)
 compute_metric(rep::Repertoire, ::TotalCount) = total_count(rep)
+compute_metric(rep::Repertoire, ::Depth) = total_count(rep)
 compute_metric(rep::Repertoire, ::ShannonEntropy) = shannon_entropy(rep)
 compute_metric(rep::Repertoire, ::ShannonDiversity) = exp(shannon_entropy(rep))
 compute_metric(rep::Repertoire, ::SimpsonIndex) = simpson_index(rep)

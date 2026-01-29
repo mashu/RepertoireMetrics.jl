@@ -45,6 +45,7 @@ Each metric has a corresponding type:
 |------|-----------------|
 | `Richness()` | Number of unique lineages |
 | `TotalCount()` | Total sequence count |
+| `Depth()` | Sequencing depth (alias for TotalCount) |
 | `ShannonEntropy()` | Shannon entropy H |
 | `ShannonDiversity()` | exp(H) |
 | `NormalizedShannon()` | H / log(S) |
@@ -120,6 +121,18 @@ Richness and its estimator:
 result = compute_metrics(rep, RICHNESS_METRICS)
 # Includes: richness, total_count, chao1
 ```
+
+### `ROBUST_METRICS` (Recommended for Comparisons)
+
+Depth-robust metrics for comparing samples of different sequencing depths:
+
+```julia
+result = compute_metrics(rep, ROBUST_METRICS)
+# Includes: depth, richness, simpson_index, simpson_diversity, inverse_simpson,
+#           berger_parker, clonality, gini_coefficient
+```
+
+These metrics are computed from frequencies and are less sensitive to total count. Always includes `depth` so you report sequencing depth alongside results.
 
 ### `LENGTH_METRICS`
 

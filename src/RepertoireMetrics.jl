@@ -97,6 +97,7 @@ export compute_metrics,
 export AbstractMetric,
        Richness,
        TotalCount,
+       Depth,
        ShannonEntropy,
        ShannonDiversity,
        NormalizedShannon,
@@ -114,6 +115,7 @@ export AbstractMetric,
        DIVERSITY_METRICS,
        CLONALITY_METRICS,
        RICHNESS_METRICS,
+       ROBUST_METRICS,
        ALL_METRICS
 
 # Core functions - Sampling
