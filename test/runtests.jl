@@ -508,5 +508,172 @@ using DataFrames
         @test stats_from_sl.mean_length ≈ 3.3 atol=1e-10
         @test dist_from_sl[3] == 10
     end
-    
+
+    @testset "Rarefaction Curve" begin
+        using Random
+
+        rep = Repertoire([100, 50, 25, 10, 5, 3, 2, 1, 1, 1, 1, 1],
+                         donor_id="TestDonor")
+
+        # Default depths
+        depths = default_depths(rep)
+        @test length(depths) > 0
+        @test first(depths) >= 1
+        @test last(depths) == total_count(rep)
+        @test issorted(depths)
+        @test allunique(depths)
+
+        # Empty repertoire
+        empty_rep = Repertoire(Int[])
+        @test isempty(default_depths(empty_rep))
+
+        # Richness rarefaction curve
+        curve = rarefaction_curve(rep, Richness();
+                                  depths=[10, 50, 100, 200],
+                                  n_iter=20,
+                                  rng=MersenneTwister(42))
+        @test curve isa RarefactionCurve
+        @test length(curve.points) == 4
+        @test curve.metric == :richness
+        @test curve.donor_id == "TestDonor"
+        @test curve.original_depth == total_count(rep)
+
+        # Richness should be monotonically non-decreasing with depth (in expectation)
+        means = [p.mean for p in curve.points]
+        @test means[end] >= means[1]
+
+        # All means should be positive
+        @test all(m -> m > 0, means)
+
+        # Stds should be non-negative
+        @test all(p -> p.std >= 0, curve.points)
+
+        # At full depth, richness should equal observed richness (std ≈ 0)
+        curve_full = rarefaction_curve(rep, Richness();
+                                       depths=[total_count(rep)],
+                                       n_iter=10,
+                                       rng=MersenneTwister(42))
+        @test curve_full.points[1].mean ≈ richness(rep) atol=1e-10
+        @test curve_full.points[1].std ≈ 0.0 atol=1e-10
+
+        # Clonality curve should work too
+        curve_c = rarefaction_curve(rep, Clonality();
+                                    depths=[50, 100, 200],
+                                    n_iter=10,
+                                    rng=MersenneTwister(42))
+        @test curve_c.metric == :clonality
+        @test all(p -> 0.0 <= p.mean <= 1.0, curve_c.points)
+
+        # Error: depth exceeds total count
+        @test_throws ArgumentError rarefaction_curve(rep, Richness();
+                                                     depths=[total_count(rep) + 1])
+
+        # Error: n_iter < 1
+        @test_throws ArgumentError rarefaction_curve(rep, Richness();
+                                                     depths=[10], n_iter=0)
+
+        # DataFrame conversion
+        df = rarefaction_curve_to_dataframe(curve)
+        @test nrow(df) == 4
+        @test :depth in propertynames(df)
+        @test :mean in propertynames(df)
+        @test :std in propertynames(df)
+        @test :donor_id in propertynames(df)
+        @test :metric in propertynames(df)
+        @test df.donor_id[1] == "TestDonor"
+
+        # Multiple curves to DataFrame
+        rep2 = Repertoire([80, 60, 40, 20], donor_id="Donor2")
+        curve2 = rarefaction_curve(rep2, Richness();
+                                   depths=[10, 50, 100, 200],
+                                   n_iter=10,
+                                   rng=MersenneTwister(42))
+        combined_df = rarefaction_curve_to_dataframe([curve, curve2])
+        @test nrow(combined_df) == 8
+        @test "TestDonor" in combined_df.donor_id
+        @test "Donor2" in combined_df.donor_id
+    end
+
+    @testset "Average Rarefaction" begin
+        using Random
+
+        rep = Repertoire([100, 50, 25, 10, 5, 3, 2, 1, 1, 1, 1, 1],
+                         donor_id="TestDonor")
+
+        # Average rarefaction with default metrics
+        avg = average_rarefaction(rep, 100; n_iter=30, rng=MersenneTwister(42))
+        @test avg isa AveragedMetrics
+        @test avg.depth == 100
+        @test avg.n_iter == 30
+        @test length(avg.metric_names) == length(ALL_METRICS)
+
+        # Access by property
+        @test avg.clonality isa Float64
+        @test 0.0 <= avg.clonality <= 1.0
+
+        # Stds should be non-negative
+        @test all(s -> s >= 0, values(avg.stds))
+
+        # With specific metrics
+        avg_robust = average_rarefaction(rep, 100, ROBUST_METRICS;
+                                          n_iter=20, rng=MersenneTwister(42))
+        @test haskey(avg_robust.means, :clonality)
+        @test haskey(avg_robust.means, :simpson_diversity)
+        @test haskey(avg_robust.stds, :clonality)
+
+        # Single metric convenience
+        avg_single = average_rarefaction(rep, 100, Richness();
+                                          n_iter=20, rng=MersenneTwister(42))
+        @test haskey(avg_single.means, :richness)
+        @test length(avg_single.metric_names) == 1
+
+        # At full depth, results should be deterministic
+        avg_full = average_rarefaction(rep, total_count(rep), Richness();
+                                        n_iter=10, rng=MersenneTwister(42))
+        @test avg_full.means[:richness] ≈ richness(rep) atol=1e-10
+        @test avg_full.stds[:richness] ≈ 0.0 atol=1e-10
+
+        # Error: depth exceeds total count
+        @test_throws ArgumentError average_rarefaction(rep, total_count(rep) + 1)
+
+        # Error: n_iter < 1
+        @test_throws ArgumentError average_rarefaction(rep, 100; n_iter=0)
+
+        # DataFrame conversion with collection
+        rep2 = Repertoire([80, 60, 40, 20], donor_id="Donor2")
+        collection = RepertoireCollection([rep, rep2])
+        target = minimum(total_count(r) for r in collection)
+        averaged = [average_rarefaction(r, target, ROBUST_METRICS;
+                                         n_iter=20, rng=MersenneTwister(42))
+                    for r in collection]
+        df = averaged_metrics_to_dataframe(collection, averaged)
+        @test nrow(df) == 2
+        @test :donor_id in propertynames(df)
+        @test :clonality in propertynames(df)
+        @test :clonality_std in propertynames(df)
+        @test :depth in propertynames(df)
+    end
+
+    @testset "Rarefaction Reproducibility" begin
+        using Random
+
+        rep = Repertoire([100, 50, 25, 10, 5, 3, 2, 1, 1, 1, 1, 1])
+
+        # Same seed → same results
+        c1 = rarefaction_curve(rep, Richness();
+                                depths=[50, 100], n_iter=10,
+                                rng=MersenneTwister(123))
+        c2 = rarefaction_curve(rep, Richness();
+                                depths=[50, 100], n_iter=10,
+                                rng=MersenneTwister(123))
+        @test [p.mean for p in c1.points] == [p.mean for p in c2.points]
+        @test [p.std for p in c1.points] == [p.std for p in c2.points]
+
+        # Different seed → (very likely) different results
+        c3 = rarefaction_curve(rep, Richness();
+                                depths=[50, 100], n_iter=10,
+                                rng=MersenneTwister(999))
+        @test [p.mean for p in c1.points] != [p.mean for p in c3.points]
+    end
+
 end

@@ -1,6 +1,6 @@
 name = "RepertoireMetrics"
 uuid = "e91c7f3f-04d6-44be-88db-69575482d5b6"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Mateusz Kaduk <mateusz.kaduk@gmail.com>"]
 
 [deps]

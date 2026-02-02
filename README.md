@@ -15,6 +15,7 @@ A Julia package for computing diversity and clonality metrics for B cell reperto
 - **Flexible lineage definition**: Use `lineage_id`, V-J-CDR3 combinations (LineageCollapse.jl compatible), or custom strategies
 - **Comprehensive metrics**: Shannon, Simpson, Gini, Hill numbers, Chao1, D50, and more
 - **Composable metric selection**: Choose which metrics to compute with `+` operator
+- **Rarefaction curves & averaged rarefaction**: Depth-normalized cross-donor comparisons
 - **Type-stable design**: Proper Julia abstractions for performance
 - **Multi-donor support**: Process single files or entire directories
 
@@ -67,3 +68,21 @@ Metrics (4 computed):
 metrics = compute_metrics(rep)
 ```
 
+## Depth-Normalized Comparison
+
+Sequencing depth varies across donors, making raw lineage counts incomparable. Use rarefaction curves and averaged rarefaction for fair comparisons:
+
+```julia
+using Random
+
+# Rarefaction curves: richness vs. depth per donor
+curves = [rarefaction_curve(rep, Richness(); n_iter=50, rng=MersenneTwister(42))
+          for rep in collection]
+df_curves = rarefaction_curve_to_dataframe(curves)
+
+# Averaged metrics at a common depth
+target = minimum(total_count(rep) for rep in collection)
+averaged = [average_rarefaction(rep, target, ROBUST_METRICS; n_iter=100)
+            for rep in collection]
+df_avg = averaged_metrics_to_dataframe(collection, averaged)
+```

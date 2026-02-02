@@ -47,6 +47,7 @@ include("types.jl")
 include("repertoire.jl")
 include("metrics.jl")
 include("metric_sets.jl")
+include("rarefaction.jl")
 include("length_stats.jl")
 include("io.jl")
 
@@ -118,8 +119,16 @@ export AbstractMetric,
        ROBUST_METRICS,
        ALL_METRICS
 
-# Core functions - Sampling
-export rarefaction
+# Core functions - Sampling & rarefaction
+export rarefaction,
+       rarefaction_curve,
+       average_rarefaction,
+       default_depths,
+       RarefactionPoint,
+       RarefactionCurve,
+       AveragedMetrics,
+       rarefaction_curve_to_dataframe,
+       averaged_metrics_to_dataframe
 
 # I/O functions
 export read_repertoire,

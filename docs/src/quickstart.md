@@ -265,30 +265,65 @@ rng = MersenneTwister(42)  # Fixed seed
 rarefied = rarefaction(rep, 10000; rng=rng)
 ```
 
-#### Rarefaction Curves
+#### Averaged Rarefaction (Recommended)
 
-To understand how metrics change with sequencing depth, compute metrics at multiple depths:
+A single rarefaction draw is noisy. For robust cross-donor comparisons, average metrics over many draws at a common depth:
 
 ```julia
-depths = [1000, 5000, 10000, 25000, 50000]
-results = []
+using Random
 
-for d in depths
-    if d <= total_count(rep)
-        rarefied = rarefaction(rep, d)
-        m = compute_metrics(rarefied, Richness() + ShannonEntropy())
-        push!(results, (depth=d, richness=m.richness, shannon=m.shannon_entropy))
-    end
-end
+# Normalize all donors to the shallowest depth
+target = minimum(total_count(rep) for rep in collection)
+
+# Average over 100 draws
+averaged = [average_rarefaction(rep, target, ROBUST_METRICS;
+                                n_iter=100, rng=MersenneTwister(42))
+            for rep in collection]
+
+# Access results
+println(averaged[1].clonality)            # mean clonality
+println(averaged[1].stds[:clonality])     # standard deviation
+
+# Export to DataFrame (includes mean and std columns)
+df = averaged_metrics_to_dataframe(collection, averaged)
 ```
+
+#### Rarefaction Curves
+
+To understand how metrics change with sequencing depth and whether your repertoire is saturated:
+
+```julia
+using Random
+
+# Compute richness at multiple depths, averaged over 50 draws
+curve = rarefaction_curve(rep, Richness();
+                          n_iter=50, rng=MersenneTwister(42))
+
+# Custom depth schedule
+curve = rarefaction_curve(rep, Richness();
+                          depths=[100, 500, 1000, 5000, 10000],
+                          n_iter=50, rng=MersenneTwister(42))
+
+# Compare donors: generate curves for all repertoires
+curves = [rarefaction_curve(rep, Richness();
+                             n_iter=50, rng=MersenneTwister(42))
+          for rep in collection]
+
+# Export to a single DataFrame for plotting
+df = rarefaction_curve_to_dataframe(curves)
+# Columns: depth, mean, std, donor_id, metric
+```
+
+If a donor's rarefaction curve is still steeply rising at the common depth, your sequencing is not deep enough to reliably compare richness for that donor.
 
 #### Best Practices for Rarefaction
 
 1. **Choose a common depth** - Use the minimum depth across all samples you want to compare
-2. **Don't rarefy too aggressively** - Very low depths lose too much information
-3. **Consider multiple rarefactions** - Average results over several random subsamples for robustness
+2. **Average over multiple draws** - Use `average_rarefaction` with `n_iter=50` or more
+3. **Don't rarefy too aggressively** - Very low depths lose too much information
 4. **Report the depth used** - Always document the rarefaction depth in your analysis
-5. **Alternative: use robust metrics** - Simpson index and Berger-Parker are naturally less sensitive to sample size
+5. **Plot rarefaction curves** - Check for saturation before interpreting richness
+6. **Alternative: use robust metrics** - Simpson index and Berger-Parker are naturally less sensitive to sample size
 
 #### When NOT to Use Rarefaction
 

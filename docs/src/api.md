@@ -103,10 +103,30 @@ D50
 Chao1
 ```
 
-## Sampling
+## Sampling & Rarefaction
+
+### Single-Draw Rarefaction
 
 ```@docs
 rarefaction
+```
+
+### Rarefaction Curves
+
+```@docs
+rarefaction_curve
+RarefactionCurve
+RarefactionPoint
+default_depths
+rarefaction_curve_to_dataframe
+```
+
+### Averaged Rarefaction
+
+```@docs
+average_rarefaction
+AveragedMetrics
+averaged_metrics_to_dataframe
 ```
 
 ## Exporting Results
