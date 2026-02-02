@@ -6,6 +6,7 @@
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://mashu.github.io/RepertoireMetrics.jl/dev/)
 [![Build Status](https://github.com/mashu/RepertoireMetrics.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/mashu/RepertoireMetrics.jl/actions/workflows/CI.yml?query=branch%3Amain)
 [![Coverage](https://codecov.io/gh/mashu/RepertoireMetrics.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/mashu/RepertoireMetrics.jl)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/mashu/RepertoireMetrics.jl/blob/main/LICENSE)
 
 A Julia package for computing diversity and clonality metrics for B cell repertoire sequencing data from MIAIRR-formatted files.
 
@@ -66,10 +67,3 @@ Metrics (4 computed):
 metrics = compute_metrics(rep)
 ```
 
-## Documentation
-
-See the [documentation](https://mashu.github.io/RepertoireMetrics.jl/stable/) for detailed usage, metric explanations with formulas, and API reference.
-
-## License
-
-MIT License
